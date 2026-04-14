@@ -1,0 +1,143 @@
+"""
+generate_dataset.py
+-------------------
+Generates a realistic CSV resume dataset with sample resume text
+for multiple job categories. This allows the ML pipeline to run
+end-to-end with meaningful text data.
+
+Run once:
+    python generate_dataset.py
+"""
+
+import csv
+import os
+import random
+
+# ============================================================
+# RESUME TEXT TEMPLATES PER CATEGORY
+# ============================================================
+RESUME_DATA = {
+    "Data_Science": [
+        "Experienced data scientist with 5 years of expertise in Python, machine learning, deep learning, NLP, TensorFlow, Keras, and data visualization using Matplotlib and Seaborn. Skilled in building predictive models, deploying ML pipelines, and performing statistical analysis on large datasets. Proficient in SQL, Pandas, NumPy, scikit-learn. Published research in computational linguistics.",
+        "Data scientist specializing in natural language processing and computer vision. Extensive experience with PyTorch, Hugging Face transformers, BERT, GPT models, and recommendation systems. Built end-to-end data pipelines using Apache Spark and Airflow. Strong background in A/B testing, Bayesian inference, and time series forecasting.",
+        "Junior data scientist with a Masters degree in Statistics. Hands-on experience with regression, classification, clustering, and dimensionality reduction techniques. Familiar with Python, R, Jupyter Notebooks, and cloud platforms like AWS SageMaker. Completed multiple Kaggle competitions with top rankings.",
+        "Senior data scientist leading a team of analysts. Expertise in deep reinforcement learning, generative adversarial networks, and anomaly detection. Designed real-time fraud detection systems processing millions of transactions daily. Published papers in IEEE and ACM conferences.",
+        "Data scientist with domain expertise in healthcare analytics. Built patient risk stratification models using electronic health records. Proficient in Python, R, Tableau, and Power BI. Experience with HIPAA-compliant data processing and clinical trial analysis.",
+        "Machine learning engineer with focus on production ML systems. Experience with MLOps, model monitoring, feature stores, and CI/CD pipelines for ML. Proficient in Docker, Kubernetes, MLflow, and cloud deployment on GCP and Azure.",
+        "Data scientist with experience in recommendation engines for e-commerce platforms. Built collaborative filtering and content-based recommendation systems serving millions of users. Strong SQL skills and experience with distributed computing using Spark.",
+        "Applied data scientist working on autonomous vehicle perception systems. Experience with LiDAR point cloud processing, object detection using YOLO and Faster R-CNN, and sensor fusion techniques. Strong C++ and Python programming skills.",
+    ],
+    "HR": [
+        "Human resources professional with 8 years of experience in talent acquisition, employee relations, performance management, and organizational development. Expert in HRIS systems like Workday and SAP SuccessFactors. Managed recruitment for teams of 200+ employees across multiple locations.",
+        "HR manager specializing in employee engagement, diversity and inclusion initiatives, and corporate training programs. Certified SHRM-CP professional. Experience with compensation and benefits administration, conflict resolution, and labor law compliance.",
+        "Talent acquisition specialist with expertise in full-cycle recruiting, employer branding, and campus recruitment. Proficient in LinkedIn Recruiter, Greenhouse ATS, and data-driven hiring analytics. Successfully reduced time-to-hire by 40 percent.",
+        "HR business partner with experience in change management, workforce planning, and succession planning. Led digital transformation of HR processes including automated onboarding and performance review systems. Strong stakeholder management skills.",
+        "Senior HR generalist with expertise in payroll processing, benefits administration, and employee handbook development. Experienced in handling complex employee relations issues and conducting workplace investigations. Knowledge of FMLA, ADA, and EEO regulations.",
+        "Organizational development consultant specializing in leadership coaching, team building, and culture transformation. Designed competency frameworks and career development pathways for Fortune 500 companies. Certified in DiSC and Myers-Briggs assessments.",
+        "Recruitment coordinator managing high-volume hiring for retail and hospitality industries. Proficient in job posting optimization, candidate screening, interview scheduling, and offer management. Experience with BambooHR and iCIMS platforms.",
+        "HR analytics specialist using data to drive workforce decisions. Built predictive models for employee attrition, compensation benchmarking dashboards, and diversity metrics reporting. Proficient in Python, R, Tableau, and advanced Excel.",
+    ],
+    "Java_Developer": [
+        "Senior Java developer with 7 years of experience building enterprise applications using Java EE, Spring Boot, Spring MVC, and Hibernate ORM. Expertise in microservices architecture, RESTful API design, and message queues like Apache Kafka and RabbitMQ.",
+        "Full-stack Java developer proficient in React frontend and Spring Boot backend development. Experience with PostgreSQL, MongoDB, Redis caching, and Docker containerization. Strong understanding of design patterns, SOLID principles, and test-driven development.",
+        "Java software engineer specializing in cloud-native applications on AWS. Experience with Lambda, EC2, S3, DynamoDB, and CloudFormation. Built high-throughput payment processing systems handling millions of transactions daily using Java and Spring framework.",
+        "Backend Java developer with expertise in distributed systems and concurrent programming. Proficient in Java multithreading, ExecutorService, CompletableFuture, and reactive programming with Project Reactor. Experience with Kubernetes orchestration and CI/CD pipelines.",
+        "Java developer with experience in Android mobile application development. Built consumer-facing apps with 500K+ downloads on Google Play Store. Proficient in Kotlin, Android SDK, Room database, and Retrofit networking library.",
+        "Enterprise Java architect designing scalable solutions for banking and financial services. Expertise in Java EE, JBoss, WebSphere, Oracle Database, and SOA architecture. Led teams of 15 developers in agile development environments.",
+        "Java developer with strong experience in DevOps practices. Proficient in Jenkins, GitLab CI, Maven, Gradle, and SonarQube. Built automated testing frameworks using JUnit, Mockito, and Selenium for comprehensive code coverage.",
+        "Junior Java developer with Bachelor degree in Computer Science. Experience with core Java, data structures, algorithms, and object-oriented programming. Completed internship building REST APIs with Spring Boot and MySQL database.",
+    ],
+    "Web_Developer": [
+        "Frontend web developer with 5 years of experience building responsive websites using HTML5, CSS3, JavaScript, React.js, and TypeScript. Expertise in modern CSS frameworks like Tailwind CSS and Bootstrap. Strong focus on accessibility and performance optimization.",
+        "Full-stack web developer proficient in MERN stack development including MongoDB, Express.js, React.js, and Node.js. Experience with GraphQL APIs, WebSocket real-time communication, and progressive web applications. Built e-commerce platforms serving thousands of customers.",
+        "Web developer specializing in WordPress theme and plugin development using PHP, MySQL, and JavaScript. Created custom CMS solutions for small businesses and nonprofit organizations. Experience with WooCommerce, ACF, and Elementor page builder.",
+        "Senior frontend engineer with expertise in Vue.js, Nuxt.js, and server-side rendering. Proficient in state management with Vuex and Pinia. Built component libraries and design systems used across multiple product teams. Strong TypeScript skills.",
+        "Web developer with experience in Next.js and Vercel deployment. Built SEO-optimized static sites and dynamic web applications with server-side rendering. Proficient in Prisma ORM, NextAuth authentication, and Stripe payment integration.",
+        "Backend web developer specializing in Node.js and Python Django frameworks. Experience with RESTful API design, database optimization, authentication systems, and cloud deployment on Heroku and AWS. Built scalable APIs handling high concurrent traffic.",
+        "UI/UX focused web developer creating pixel-perfect interfaces from Figma mockups. Expertise in CSS animations, SVG graphics, and interactive data visualizations using D3.js and Chart.js. Strong understanding of color theory and typography.",
+        "Junior web developer with portfolio of personal projects including blog platforms, weather apps, and task management tools. Proficient in HTML, CSS, JavaScript, and Git version control. Currently learning React and Node.js.",
+    ],
+    "Python_Developer": [
+        "Senior Python developer with 6 years of experience building web applications using Django and Flask frameworks. Expertise in RESTful API development, database design with PostgreSQL, and asynchronous programming with asyncio and Celery task queues.",
+        "Python backend developer specializing in microservices architecture using FastAPI and gRPC. Experience with Docker, Kubernetes, Redis, and message brokers. Built real-time data processing pipelines handling millions of events per second.",
+        "Python developer with expertise in automation and scripting. Built ETL pipelines, web scrapers using Scrapy and BeautifulSoup, and system administration tools. Proficient in Linux, Bash scripting, and infrastructure automation with Ansible.",
+        "Full-stack Python developer proficient in Django REST Framework backend and React frontend. Experience with AWS services including EC2, RDS, Lambda, and S3. Built SaaS applications with multi-tenant architecture and subscription billing.",
+        "Python developer specializing in scientific computing and data engineering. Proficient in NumPy, SciPy, Pandas, and Dask for large-scale data processing. Experience with Jupyter ecosystem, Conda environments, and reproducible research workflows.",
+        "DevOps-focused Python developer building CI/CD pipelines and infrastructure tooling. Proficient in Terraform, Docker Compose, GitHub Actions, and monitoring with Prometheus and Grafana. Automated deployment workflows for Python microservices.",
+        "Python developer with experience in financial technology. Built algorithmic trading systems, risk management tools, and portfolio analytics dashboards. Proficient in pandas, quantlib, and real-time data streaming with websockets.",
+        "Junior Python developer with strong fundamentals in object-oriented programming, data structures, and algorithms. Completed projects in web scraping, chatbot development, and REST API building. Active open-source contributor on GitHub.",
+    ],
+    "Database_Administrator": [
+        "Senior database administrator with 10 years of experience managing Oracle, SQL Server, and PostgreSQL databases. Expertise in performance tuning, query optimization, backup and recovery strategies, and high availability configurations using Always On and RAC.",
+        "MySQL database administrator specializing in large-scale web application databases. Proficient in replication, sharding, partitioning, and InnoDB optimization. Managed databases serving 50 million daily active users with 99.99 percent uptime.",
+        "Cloud database administrator experienced with Amazon RDS, Azure SQL Database, and Google Cloud SQL. Managed database migrations from on-premises to cloud environments. Expertise in automated provisioning, monitoring, and cost optimization.",
+        "Database developer with expertise in T-SQL, PL/SQL, and stored procedure development. Built complex ETL workflows, data warehouse schemas, and reporting solutions using SSRS and SSIS. Experience with dimensional modeling and star schema design.",
+        "NoSQL database administrator managing MongoDB, Cassandra, and Redis clusters. Designed schema-less data models for real-time analytics platforms. Experience with data modeling, capacity planning, and disaster recovery procedures.",
+        "Database administrator with focus on security and compliance. Implemented encryption at rest and in transit, role-based access controls, and audit logging for SOX and PCI-DSS compliance. Experience with database vulnerability scanning and patching.",
+        "Junior database administrator with certifications in Oracle OCA and Microsoft MCSA SQL Server. Experience with database installation, configuration, user management, and basic performance troubleshooting. Familiar with backup automation using scripts.",
+        "Big data engineer and database specialist working with Hadoop, Hive, and Spark SQL. Designed distributed data lakes storing petabytes of structured and unstructured data. Proficient in Parquet, Avro formats, and data catalog management.",
+    ],
+    "Sales": [
+        "Senior sales executive with 8 years of experience in B2B SaaS sales. Consistently exceeded quarterly quotas by 30 percent. Expertise in consultative selling, pipeline management, and CRM tools including Salesforce and HubSpot. Managed enterprise accounts worth over 5 million annually.",
+        "Business development representative specializing in outbound prospecting and lead generation. Proficient in cold calling, email outreach, LinkedIn Sales Navigator, and sales engagement platforms like Outreach and Salesloft. Generated 200 qualified leads per quarter.",
+        "Account executive with experience in pharmaceutical sales and medical device distribution. Built strong relationships with healthcare providers, hospitals, and pharmacy chains. Consistently ranked in top 5 percent of national sales team.",
+        "Sales manager leading a team of 12 representatives in retail technology sales. Developed training programs, sales playbooks, and mentoring initiatives that improved team performance by 45 percent. Strong forecasting and territory planning skills.",
+        "Inside sales representative with expertise in subscription-based software sales. Managed full sales cycle from demo to close for SMB market segment. Achieved 120 percent of annual quota through strategic upselling and cross-selling techniques.",
+        "Sales operations analyst optimizing sales processes and reporting. Built Salesforce dashboards, automated lead scoring models, and commission calculation systems. Proficient in Excel, SQL, and Tableau for sales analytics and forecasting.",
+        "Channel sales manager developing and managing partner ecosystems. Recruited and onboarded 50 plus channel partners, negotiated co-marketing agreements, and designed partner enablement programs. Experience with indirect sales models and deal registration processes.",
+        "Enterprise sales executive specializing in cloud infrastructure and cybersecurity solutions. Managed complex multi-stakeholder deals with 12 month plus sales cycles. Experience with RFP responses, proof of concept demonstrations and executive presentations.",
+    ],
+    "Network_Engineer": [
+        "Senior network engineer with 10 years of experience designing and managing enterprise LAN/WAN networks. Expertise in Cisco IOS, Juniper JunOS, BGP, OSPF, EIGRP routing protocols, and MPLS. Holds CCNP and CCIE certifications.",
+        "Network security engineer specializing in firewall management, VPN configuration, and intrusion detection systems. Proficient in Palo Alto, Fortinet, and Check Point firewalls. Implemented zero-trust network architecture for financial services clients.",
+        "Cloud network engineer experienced with AWS VPC, Azure Virtual Network, and Google Cloud networking. Designed hybrid cloud connectivity solutions using Direct Connect and ExpressRoute. Expertise in software-defined networking and network automation with Ansible.",
+        "Wireless network engineer designing and optimizing enterprise Wi-Fi networks using Cisco Meraki and Aruba solutions. Performed RF site surveys, heat mapping, and capacity planning for campus and warehouse environments supporting 10000 plus devices.",
+        "Network operations center engineer monitoring and troubleshooting network incidents using SolarWinds, PRTG, and Nagios tools. Managed escalation procedures, incident response, and root cause analysis for tier 2 and tier 3 network issues.",
+        "Network automation engineer building scripts and tools for network configuration management. Proficient in Python, Netmiko, NAPALM, and REST APIs for network device automation. Implemented infrastructure as code practices for network provisioning.",
+        "Junior network engineer with CCNA certification and hands-on experience in switching, routing, and network troubleshooting. Familiar with VLAN configuration, spanning tree protocol, and basic firewall rules. Completed internship in managed services provider.",
+        "Telecommunications engineer with experience in VoIP, SIP trunking, and unified communications systems. Deployed Cisco Unified Communications Manager and Microsoft Teams voice solutions for enterprise customers with thousands of endpoints.",
+    ],
+}
+
+# ============================================================
+# GENERATE CSV DATASET
+# ============================================================
+def generate_dataset(output_path, samples_per_category=8):
+    """
+    Create a CSV file with resume text and category labels.
+
+    Parameters
+    ----------
+    output_path : str
+        Path to save the CSV file.
+    samples_per_category : int
+        Number of resumes per category (uses all available templates).
+    """
+    rows = []
+
+    for category, resumes in RESUME_DATA.items():
+        for resume_text in resumes[:samples_per_category]:
+            # Add some variation by slightly shuffling sentences
+            sentences = resume_text.split(". ")
+            random.seed(len(resume_text))  # reproducible shuffle
+            variation = ". ".join(sentences)
+            rows.append({"Resume_Text": variation, "Category": category})
+
+    # Shuffle all rows
+    random.seed(42)
+    random.shuffle(rows)
+
+    # Write CSV
+    with open(output_path, "w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=["Resume_Text", "Category"])
+        writer.writeheader()
+        writer.writerows(rows)
+
+    print(f"[INFO] Dataset generated: {output_path}")
+    print(f"[INFO] Total resumes: {len(rows)}")
+    print(f"[INFO] Categories: {list(RESUME_DATA.keys())}")
+
+
+if __name__ == "__main__":
+    output = os.path.join(os.path.dirname(__file__), "ResumeDataset.csv")
+    generate_dataset(output)
