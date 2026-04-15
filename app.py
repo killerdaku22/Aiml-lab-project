@@ -20,6 +20,13 @@ from utils import load_data, preprocess_text
 from feature_engineering import vectorize_text, select_features
 from model import train_model
 
+# External API Modules (Gemini / Web Scraping)
+try:
+    from api_extensions import scrape_job_description, gemini_resume_review
+    API_AVAILABLE = True
+except ImportError:
+    API_AVAILABLE = False
+
 # ============================================================
 # UI CONFIGURATION
 # ============================================================
@@ -80,9 +87,16 @@ with st.spinner("Initializing robust Machine Learning pipeline..."):
 
 
 # ============================================================
-# MAIN INTERFACE — RESUME PREDICTION
+# MAIN INTERFACE
 # ============================================================
-col1, col2 = st.columns([1.2, 1])
+
+tabs = st.tabs(["🚀 Phase 1: Local ML Prediction", "🤖 Phase 2: Gemini Deep Analysis"])
+
+# -------------------------------------------------------------
+# TAB 1: LOCAL MACHINE LEARNING PIPELINE
+# -------------------------------------------------------------
+with tabs[0]:
+    col1, col2 = st.columns([1.2, 1])
 
 with col1:
     st.subheader("1. Input Candidate Information")
@@ -159,7 +173,52 @@ with col2:
             
             st.altair_chart(chart, use_container_width=True)
             st.balloons()
-            
+
+# -------------------------------------------------------------
+# TAB 2: GEMINI API & WEB SCRAPING
+# -------------------------------------------------------------
+with tabs[1]:
+    st.subheader("🤖 Resume vs. Job Description (Gemini AI)")
+    st.markdown("Use Google's Gemini AI to review the resume against a live Job Description URL.")
+    
+    if not API_AVAILABLE:
+        st.error("API Extensions module not found. Please ensure `api_extensions.py` is present.")
+    else:
+        # Inputs
+        gemini_resume_input = st.text_area(
+            "Candidate Resume Text:", 
+            value=sample_placeholder, 
+            height=200, 
+            key="gemini_resume"
+        )
+        job_url_input = st.text_input("Job Description URL (Optional - leave blank for general review):", placeholder="https://www.linkedin.com/jobs/view/...")
+        
+        if st.button("Generate Detailed Gemini Analysis", type="primary"):
+            if gemini_resume_input.strip() == "":
+                st.warning("Please provide a resume.")
+            else:
+                with st.spinner("Connecting to Google Gemini API..."):
+                    
+                    job_validation_text = None
+                    # Run Web Scraper if URL provided
+                    if job_url_input.strip() != "":
+                        st.toast("Scraping Job URL...")
+                        job_validation_text = scrape_job_description(job_url_input)
+                        
+                        if "[Error]" in job_validation_text:
+                            st.warning(job_validation_text)
+                            st.info("Falling back to a general resume review without the specific job description.")
+                        else:
+                            st.success("Successfully scraped webpage text!")
+                    
+                    # Run Gemini AI
+                    st.toast("Asking Gemini to analyze...")
+                    ai_review = gemini_resume_review(gemini_resume_input, job_validation_text)
+                    
+                    st.markdown("---")
+                    st.markdown("### 📝 Gemini AI Feedback")
+                    st.markdown(f"> {ai_review}")
+
 
 # ============================================================
 # SIDEBAR — METRICS
