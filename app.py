@@ -104,7 +104,7 @@ with col1:
 
     sample_placeholder = "Experienced data scientist with expertise in Python, machine learning, deep learning, NLP, TensorFlow, and data visualization. Skilled in building predictive models."
     user_resume_text = st.text_area(
-        "",
+        "Candidate Details",
         value=sample_placeholder,
         height=300,
         label_visibility="collapsed"
